@@ -6,18 +6,23 @@ package com.example.frigateviewer.data.model
 data class Camera(
     val id: String,
     val name: String,
-    val streamName: String, // go2rtc stream name (may differ from camera ID)
+    val streamName: String, // main/record quality stream (may differ from camera ID)
+    val subStreamName: String?, // detect/sub quality stream (may be null)
     val enabled: Boolean = true
 ) {
     /**
      * Get the RTSP stream URL for this camera via go2rtc
      * Format: rtsp://<frigate-ip>:8554/<stream-name>
+     * @param frigateHost The Frigate host URL
+     * @param useSubStream If true, use the substream (detect role) for lower quality/bandwidth
      */
-    fun getRtspUrl(frigateHost: String): String {
+    fun getRtspUrl(frigateHost: String, useSubStream: Boolean = false): String {
         // Extract host without protocol
         val host = frigateHost.replace("http://", "").replace("https://", "")
             .substringBefore(":")
-        return "rtsp://$host:8554/$streamName"
+        // Use substream if requested and available, otherwise use main stream
+        val stream = if (useSubStream && subStreamName != null) subStreamName else streamName
+        return "rtsp://$host:8554/$stream"
     }
 
     /**

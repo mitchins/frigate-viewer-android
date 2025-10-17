@@ -28,24 +28,13 @@ import org.videolan.libvlc.MediaPlayer.Event as VlcEvent
 
 @Composable
 fun VideoPlayer(
+    libVLC: LibVLC,
     streamUrl: String,
     cameraName: String,
+    enableAudio: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-
-    val libVLC = remember {
-        LibVLC(context, arrayListOf(
-            "--network-caching=300",
-            "--rtsp-tcp", // Force TCP for RTSP
-            // Keep a small live cache to stabilize start
-            "--live-caching=150",
-            // Some devices show black with zero-copy direct rendering
-            "--no-mediacodec-dr",
-            "--audio-time-stretch",
-            "-vv" // Verbose logging for debugging
-        ))
-    }
 
     val mediaPlayer = remember {
         MediaPlayer(libVLC).apply {
@@ -96,8 +85,10 @@ fun VideoPlayer(
         )
     }
 
-    DisposableEffect(streamUrl) {
+    DisposableEffect(streamUrl, enableAudio) {
         Log.d("VideoPlayer", "Preparing media for $cameraName -> $streamUrl")
+        // Stop any previous playback before switching media to avoid codec deadlocks
+        try { if (mediaPlayer.isPlaying) mediaPlayer.stop() } catch (_: Throwable) { }
 
         val media = Media(libVLC, Uri.parse(streamUrl)).apply {
             // Prefer hardware decoding when available
@@ -108,6 +99,10 @@ fun VideoPlayer(
             addOption(":network-caching=300")
             // Avoid Live555 frame truncation on high-bitrate IDR frames
             addOption(":rtsp-frame-buffer-size=2000000")
+            // Reduce backlog/stalls when switching selections quickly
+            addOption(":drop-late-frames")
+            addOption(":skip-frames")
+            if (!enableAudio) addOption(":no-audio")
         }
 
         mediaPlayer.media = media
@@ -127,9 +122,6 @@ fun VideoPlayer(
     }
 
     DisposableEffect(Unit) {
-        onDispose {
-            try { mediaPlayer.release() } catch (_: Throwable) { }
-            try { libVLC.release() } catch (_: Throwable) { }
-        }
+        onDispose { try { mediaPlayer.release() } catch (_: Throwable) { } }
     }
 }

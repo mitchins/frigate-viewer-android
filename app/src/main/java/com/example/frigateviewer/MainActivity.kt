@@ -52,7 +52,7 @@ fun FrigateViewerApp(viewModel: CameraViewModel) {
     if (showCameraSelector) {
         CameraSelectorSheet(
             uiState = uiState,
-            onCameraToggle = { camera -> viewModel.toggleCameraSelection(camera) },
+            onApply = { selected -> viewModel.setSelectedCameras(selected) },
             onDismiss = { showCameraSelector = false }
         )
     }

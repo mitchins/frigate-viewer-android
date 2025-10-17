@@ -73,6 +73,12 @@ class CameraViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(selectedCameras = currentSelected)
     }
 
+    fun setSelectedCameras(cameras: List<Camera>) {
+        val maxCameras = _uiState.value.viewLayout.maxCameras
+        val trimmed = cameras.take(maxCameras)
+        _uiState.value = _uiState.value.copy(selectedCameras = trimmed)
+    }
+
     fun setViewLayout(layout: ViewLayout) {
         val currentSelected = _uiState.value.selectedCameras
 

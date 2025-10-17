@@ -8,7 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -19,10 +19,16 @@ import com.example.frigateviewer.ui.viewmodel.CameraUiState
 @Composable
 fun CameraSelectorSheet(
     uiState: CameraUiState,
-    onCameraToggle: (Camera) -> Unit,
+    onApply: (List<Camera>) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Local buffered selection; apply only when pressing Done
+    val initial = uiState.selectedCameras.map { it.id }
+    val localSelected = remember(uiState.viewLayout, uiState.selectedCameras) {
+        mutableStateListOf<String>().apply { addAll(initial) }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier
@@ -64,12 +70,19 @@ fun CameraSelectorSheet(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(uiState.allCameras) { camera ->
+                        val isSelected = localSelected.contains(camera.id)
+                        val canAddMore = localSelected.size < uiState.viewLayout.maxCameras
                         CameraItem(
                             camera = camera,
-                            isSelected = uiState.selectedCameras.contains(camera),
-                            isEnabled = uiState.selectedCameras.contains(camera) ||
-                                    uiState.selectedCameras.size < uiState.viewLayout.maxCameras,
-                            onToggle = { onCameraToggle(camera) }
+                            isSelected = isSelected,
+                            isEnabled = isSelected || canAddMore,
+                            onToggle = {
+                                if (isSelected) {
+                                    localSelected.remove(camera.id)
+                                } else if (canAddMore) {
+                                    localSelected.add(camera.id)
+                                }
+                            }
                         )
                     }
                 }
@@ -78,7 +91,11 @@ fun CameraSelectorSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = onDismiss,
+                onClick = {
+                    val applied = uiState.allCameras.filter { localSelected.contains(it.id) }
+                    onApply(applied)
+                    onDismiss()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp)

@@ -21,23 +21,25 @@ class FrigateRepository {
                 val config = response.body()
                 if (config != null) {
                     val cameras = config.cameras.map { (id, cameraConfig) ->
-                        // Extract stream name from ffmpeg inputs (most reliable)
-                        // Prefer "record" role (higher quality main streams) for libVLC which supports H.265
-                        val streamName = cameraConfig.ffmpeg?.inputs
+                        // Extract main stream name from ffmpeg inputs with "record" role (high quality)
+                        val mainStreamName = cameraConfig.ffmpeg?.inputs
                             ?.firstOrNull { it.roles?.contains("record") == true }
                             ?.path
                             ?.substringAfterLast("/")
-                            ?: cameraConfig.ffmpeg?.inputs
-                                ?.firstOrNull { it.roles?.contains("detect") == true }
-                                ?.path
-                                ?.substringAfterLast("/")
                             ?: cameraConfig.live?.streamName // Fallback to live.stream_name
                             ?: id // Final fallback to camera ID
+
+                        // Extract substream name from ffmpeg inputs with "detect" role (lower quality)
+                        val subStreamName = cameraConfig.ffmpeg?.inputs
+                            ?.firstOrNull { it.roles?.contains("detect") == true }
+                            ?.path
+                            ?.substringAfterLast("/")
 
                         Camera(
                             id = id,
                             name = cameraConfig.name ?: id.replaceFirstChar { it.uppercase() },
-                            streamName = streamName,
+                            streamName = mainStreamName,
+                            subStreamName = subStreamName,
                             enabled = cameraConfig.enabled
                         )
                     }.filter { it.enabled } // Only return enabled cameras
