@@ -60,39 +60,20 @@ class CameraViewModel : ViewModel() {
 
     fun toggleCameraSelection(camera: Camera) {
         val currentSelected = _uiState.value.selectedCameras.toMutableList()
-        val maxCameras = _uiState.value.viewLayout.maxCameras
-
         if (currentSelected.contains(camera)) {
             currentSelected.remove(camera)
         } else {
-            if (currentSelected.size < maxCameras) {
-                currentSelected.add(camera)
-            }
+            currentSelected.add(camera)
         }
-
         _uiState.value = _uiState.value.copy(selectedCameras = currentSelected)
     }
 
     fun setSelectedCameras(cameras: List<Camera>) {
-        val maxCameras = _uiState.value.viewLayout.maxCameras
-        val trimmed = cameras.take(maxCameras)
-        _uiState.value = _uiState.value.copy(selectedCameras = trimmed)
+        _uiState.value = _uiState.value.copy(selectedCameras = cameras)
     }
 
     fun setViewLayout(layout: ViewLayout) {
-        val currentSelected = _uiState.value.selectedCameras
-
-        // If we have more cameras selected than the layout allows, trim the list
-        val adjustedSelection = if (currentSelected.size > layout.maxCameras) {
-            currentSelected.take(layout.maxCameras)
-        } else {
-            currentSelected
-        }
-
-        _uiState.value = _uiState.value.copy(
-            viewLayout = layout,
-            selectedCameras = adjustedSelection
-        )
+        _uiState.value = _uiState.value.copy(viewLayout = layout)
     }
 
     fun clearError() {

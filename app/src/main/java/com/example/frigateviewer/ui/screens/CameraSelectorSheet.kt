@@ -44,12 +44,7 @@ fun CameraSelectorSheet(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            Text(
-                text = "Max ${uiState.viewLayout.maxCameras} cameras for ${uiState.viewLayout.displayName}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (uiState.allCameras.isEmpty()) {
                 Box(
@@ -71,7 +66,7 @@ fun CameraSelectorSheet(
                 ) {
                     items(uiState.allCameras) { camera ->
                         val isSelected = localSelected.contains(camera.id)
-                        val canAddMore = localSelected.size < uiState.viewLayout.maxCameras
+                        val canAddMore = true // no hard cap; mosaic will layout dynamically
                         CameraItem(
                             camera = camera,
                             isSelected = isSelected,

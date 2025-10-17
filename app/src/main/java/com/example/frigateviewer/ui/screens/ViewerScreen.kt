@@ -1,9 +1,7 @@
 package com.example.frigateviewer.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.key
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -16,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import org.videolan.libvlc.LibVLC
 import com.example.frigateviewer.data.model.Camera
 import com.example.frigateviewer.data.model.ViewLayout
+import com.example.frigateviewer.ui.components.MosaicGrid
 import com.example.frigateviewer.ui.components.VideoPlayer
 import com.example.frigateviewer.ui.viewmodel.CameraUiState
 
@@ -35,30 +34,6 @@ fun ViewerScreen(
             TopAppBar(
                 title = { Text("Frigate Viewer") },
                 actions = {
-                    // Layout selector
-                    IconButton(onClick = { showLayoutMenu = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Layout")
-                    }
-                    DropdownMenu(
-                        expanded = showLayoutMenu,
-                        onDismissRequest = { showLayoutMenu = false }
-                    ) {
-                        ViewLayout.entries.forEach { layout ->
-                            DropdownMenuItem(
-                                text = { Text(layout.displayName) },
-                                onClick = {
-                                    onLayoutChange(layout)
-                                    showLayoutMenu = false
-                                },
-                                leadingIcon = {
-                                    if (layout == uiState.viewLayout) {
-                                        Text("✓")
-                                    }
-                                }
-                            )
-                        }
-                    }
-
                     // Camera selector
                     IconButton(onClick = onOpenCameraSelector) {
                         Icon(Icons.Default.Menu, contentDescription = "Select Cameras")
@@ -161,27 +136,21 @@ fun CameraGrid(
     DisposableEffect(Unit) {
         onDispose { try { libVLC.release() } catch (_: Throwable) { } }
     }
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(layout.columns),
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        items(count = cameras.size, key = { idx -> cameras[idx].id }) { index ->
-            val camera = cameras[index]
-            // Enable audio only for the first tile to reduce contention
-            val audioForThisTile = index == 0
-            // Use substream for grid views (multi-camera), full quality for single view
-            val useSubStream = isMultiView
+    MosaicGrid(
+        items = cameras,
+        aspectRatio = { 16f / 9f },
+        modifier = modifier.fillMaxSize()
+    ) { camera ->
+        val index = cameras.indexOf(camera)
+        val audioForThisTile = index == 0
+        val useSubStream = isMultiView
+        key(camera.id) {
             VideoPlayer(
                 libVLC = libVLC,
                 streamUrl = camera.getRtspUrl(frigateHost, useSubStream = useSubStream),
                 cameraName = camera.name,
                 enableAudio = audioForThisTile,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
             )
         }
     }
