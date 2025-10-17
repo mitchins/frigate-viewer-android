@@ -1,0 +1,29 @@
+# Android/Gradle
+.idea/
+.gradle/
+local.properties
+*.iml
+*.iws
+*.ipr
+/.project
+/.classpath
+/.settings/
+
+# Build outputs
+build/
+*/build/
+app/build/
+
+# OS / tools
+.DS_Store
+Thumbs.db
+
+# Logs / captures
+*.log
+captures/
+app/log.txt
+
+# Keystores (if any)
+*.jks
+*.keystore
+

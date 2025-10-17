@@ -1,0 +1,135 @@
+package com.example.frigateviewer.ui.components
+
+import android.net.Uri
+import android.util.Log
+import android.view.SurfaceView
+import android.view.ViewGroup
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.Media
+import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.interfaces.IVLCVout
+import org.videolan.libvlc.util.VLCVideoLayout
+import org.videolan.libvlc.MediaPlayer.Event as VlcEvent
+
+@Composable
+fun VideoPlayer(
+    streamUrl: String,
+    cameraName: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    val libVLC = remember {
+        LibVLC(context, arrayListOf(
+            "--network-caching=300",
+            "--rtsp-tcp", // Force TCP for RTSP
+            // Keep a small live cache to stabilize start
+            "--live-caching=150",
+            // Some devices show black with zero-copy direct rendering
+            "--no-mediacodec-dr",
+            "--audio-time-stretch",
+            "-vv" // Verbose logging for debugging
+        ))
+    }
+
+    val mediaPlayer = remember {
+        MediaPlayer(libVLC).apply {
+            setEventListener { event ->
+                when (event.type) {
+                    VlcEvent.Playing -> Log.d("VideoPlayer", "VLC state: Playing")
+                    VlcEvent.Buffering -> Log.d("VideoPlayer", "VLC state: Buffering ${event.buffering}")
+                    VlcEvent.Paused -> Log.d("VideoPlayer", "VLC state: Paused")
+                    VlcEvent.Stopped -> Log.d("VideoPlayer", "VLC state: Stopped")
+                    VlcEvent.EndReached -> Log.d("VideoPlayer", "VLC state: EndReached")
+                    VlcEvent.EncounteredError -> Log.e("VideoPlayer", "VLC state: Error encountered")
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    // Using VLCVideoLayout, no explicit vout callbacks needed
+
+    Box(
+        modifier = modifier
+            .background(Color.Black)
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                VLCVideoLayout(ctx).apply { keepScreenOn = true }
+            },
+            update = { videoLayout ->
+                // Attach VLC output to the provided layout
+                val vlcVout = mediaPlayer.vlcVout
+                if (!vlcVout.areViewsAttached()) {
+                    mediaPlayer.attachViews(videoLayout, null, false, false)
+                    if (!mediaPlayer.isPlaying) mediaPlayer.play()
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Camera name overlay
+        Text(
+            text = cameraName,
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+
+    DisposableEffect(streamUrl) {
+        Log.d("VideoPlayer", "Preparing media for $cameraName -> $streamUrl")
+
+        val media = Media(libVLC, Uri.parse(streamUrl)).apply {
+            // Prefer hardware decoding when available
+            setHWDecoderEnabled(true, false)
+            // Media-level options to ensure RTSP TCP and resiliency
+            addOption(":rtsp-tcp")
+            addOption(":rtsp-reconnect")
+            addOption(":network-caching=300")
+            // Avoid Live555 frame truncation on high-bitrate IDR frames
+            addOption(":rtsp-frame-buffer-size=2000000")
+        }
+
+        mediaPlayer.media = media
+        media.release()
+
+        // Start will actually occur on onSurfacesCreated; if views already attached, ensure play
+        if (mediaPlayer.vlcVout.areViewsAttached() && !mediaPlayer.isPlaying) {
+            mediaPlayer.play()
+        }
+
+        onDispose {
+            try {
+                mediaPlayer.stop()
+            } catch (_: Throwable) { }
+            try { mediaPlayer.detachViews() } catch (_: Throwable) { }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try { mediaPlayer.release() } catch (_: Throwable) { }
+            try { libVLC.release() } catch (_: Throwable) { }
+        }
+    }
+}
