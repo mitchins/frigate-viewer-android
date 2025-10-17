@@ -4,9 +4,9 @@ A simple Android application built with Kotlin and Jetpack Compose for viewing l
 
 ## Features
 
-- **Live RTSP Streaming**: View H.265 camera streams using ExoPlayer with hardware decoding
+- **Live RTSP Streaming**: H.264/H.265 playback via libVLC (TCP) with hardware decoding where available
 - **Multiple Layouts**: Choose between Single View, 2x2 Grid, or 3x3 Grid layouts
-- **Flexible Camera Selection**: Select which cameras to display using a modal selector
+- **Flexible Camera Selection**: Select cameras in a modal and apply changes on Done (prevents mid-selection stalls)
 - **Auto-discovery**: Automatically fetches available cameras from your Frigate server
 - **Material 3 Design**: Modern UI with Material Design 3
 
@@ -35,19 +35,17 @@ The app fetches the list of available cameras from your Frigate server using the
 
 ### Stream Playback
 
-By default, the app uses RTSP streams via go2rtc:
-- RTSP URL format: `rtsp://<frigate-ip>:8554/<camera-name>`
-
-The app also supports alternative stream types (configured in Camera.kt:18):
-- HLS streams
-- MJPEG fallback
+- RTSP via go2rtc (forced TCP): `rtsp://<frigate-ip>:8554/<stream-name>`
+- Backed by libVLC 4.x using `VLCVideoLayout` for rendering in Compose
+- One shared `LibVLC` instance per screen; each tile creates its own `MediaPlayer`
+- Only the first tile has audio enabled by default to reduce decoder contention
 
 ### Architecture
 
-- **MVVM Architecture**: ViewModel manages UI state and business logic
+- **MVVM**: ViewModel manages UI state and business logic
 - **Retrofit**: HTTP client for Frigate API calls
-- **ExoPlayer**: Media player with RTSP support
-- **Jetpack Compose**: Modern declarative UI
+- **libVLC**: RTSP playback (H.264/H.265), TCP transport, configurable caching
+- **Jetpack Compose**: Modern declarative UI with `VLCVideoLayout`
 - **Kotlin Coroutines**: Asynchronous operations
 
 ## Project Structure
@@ -87,7 +85,7 @@ Open the project in Android Studio and build:
 - AndroidX Core, Lifecycle, Activity Compose
 - Jetpack Compose (Material 3, UI)
 - Navigation Compose
-- Media3 ExoPlayer with RTSP extension
+- libVLC (`org.videolan.android:libvlc-all`)
 - Retrofit with Gson converter
 - OkHttp
 - Kotlin Coroutines
@@ -95,9 +93,27 @@ Open the project in Android Studio and build:
 ## Notes
 
 - Ensure your Android device can access your Frigate server on the local network
-- The app uses `usesCleartextTraffic="true"` to allow HTTP connections (see AndroidManifest.xml:19)
-- For production use, consider using HTTPS
-- Some older devices may have limited H.265 hardware decoding support
+- The app uses `usesCleartextTraffic="true"` to allow HTTP connections (see `AndroidManifest.xml`)
+- For production use, consider HTTPS
+- Emulators often struggle with multiple concurrent RTSP decoders; test on a real device when possible
+- Some older devices have limited H.265 hardware decoding support
+
+## Multi‑view and Selection
+
+- The camera selector batches changes and applies them when tapping Done to avoid tearing down/creating players repeatedly
+- Grid items use stable keys so players are reused when possible
+- Only one tile has audio enabled by default (the first)
+
+## Troubleshooting
+
+- Black video or “video output display creation failed”:
+  - We use `VLCVideoLayout` and disable direct rendering (`--no-mediacodec-dr`) to improve compatibility
+- Stalls when switching selection or ANR while selector is open:
+  - Changes now apply on close; if issues persist, increase caching (`:network-caching=500`) or reduce active tiles
+- “frame size exceeds the client's buffer size” logs:
+  - We set `:rtsp-frame-buffer-size=2000000`; increase if needed for very high bitrate IDR frames
+- No playback over Wi‑Fi/Emulator complaining about source address:
+  - Transport is forced to RTSP over TCP; verify network reachability and try on a physical device
 
 ## License
 
