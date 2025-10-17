@@ -8,6 +8,7 @@ data class Camera(
     val name: String,
     val streamName: String, // main/record quality stream (may differ from camera ID)
     val subStreamName: String?, // detect/sub quality stream (may be null)
+    val aspectRatio: Float? = null, // width/height if known
     val enabled: Boolean = true
 ) {
     /**

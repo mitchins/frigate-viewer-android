@@ -15,7 +15,9 @@ data class CameraConfig(
     @SerializedName("ffmpeg")
     val ffmpeg: FfmpegConfig? = null,
     @SerializedName("live")
-    val live: LiveConfig? = null
+    val live: LiveConfig? = null,
+    @SerializedName("detect")
+    val detect: DetectConfig? = null
 )
 
 data class LiveConfig(
@@ -33,4 +35,9 @@ data class InputConfig(
     val path: String? = null,
     @SerializedName("roles")
     val roles: List<String>? = null
+)
+
+data class DetectConfig(
+    @SerializedName("width") val width: Int? = null,
+    @SerializedName("height") val height: Int? = null
 )

@@ -138,7 +138,7 @@ fun CameraGrid(
     }
     MosaicGrid(
         items = cameras,
-        aspectRatio = { 16f / 9f },
+        aspectRatio = { cam -> cam.aspectRatio ?: 16f / 9f },
         modifier = modifier.fillMaxSize()
     ) { camera ->
         val index = cameras.indexOf(camera)

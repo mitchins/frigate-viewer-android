@@ -23,6 +23,7 @@ fun CameraSelectorSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // Local buffered selection; apply only when pressing Done
     val initial = uiState.selectedCameras.map { it.id }
     val localSelected = remember(uiState.viewLayout, uiState.selectedCameras) {
@@ -31,7 +32,8 @@ fun CameraSelectorSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = modifier
+        modifier = modifier,
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
