@@ -35,17 +35,18 @@ class FrigateRepository {
                             ?.path
                             ?.substringAfterLast("/")
 
-                        val aspect: Float? = if (cameraConfig.detect?.width != null && cameraConfig.detect.height != null &&
-                            cameraConfig.detect.width!! > 0 && cameraConfig.detect.height!! > 0) {
-                            cameraConfig.detect.width.toFloat() / cameraConfig.detect.height.toFloat()
-                        } else null
+                        val ar: Float? = cameraConfig.detect?.let { det ->
+                            val w = det.width
+                            val h = det.height
+                            if (w != null && h != null && w > 0 && h > 0) w.toFloat() / h.toFloat() else null
+                        }
 
                         Camera(
                             id = id,
                             name = cameraConfig.name ?: id.replaceFirstChar { it.uppercase() },
                             streamName = mainStreamName,
                             subStreamName = subStreamName,
-                            aspectRatio = aspect,
+                            aspectRatio = ar,
                             enabled = cameraConfig.enabled
                         )
                     }.filter { it.enabled } // Only return enabled cameras

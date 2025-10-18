@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.frigateviewer.data.model.Camera
 import com.example.frigateviewer.data.model.ViewLayout
 import com.example.frigateviewer.data.repository.FrigateRepository
+import com.example.frigateviewer.ui.model.SizingStrategy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,7 @@ data class CameraUiState(
     val allCameras: List<Camera> = emptyList(),
     val selectedCameras: List<Camera> = emptyList(),
     val viewLayout: ViewLayout = ViewLayout.SINGLE,
+    val sizingStrategy: SizingStrategy = SizingStrategy.FIT,
     val error: String? = null,
     val frigateHost: String = "http://192.168.1.15:5000"
 )
@@ -84,5 +86,9 @@ class CameraViewModel : ViewModel() {
         repository.updateFrigateHost(newHost)
         _uiState.value = _uiState.value.copy(frigateHost = repository.getFrigateHost())
         loadCameras()
+    }
+
+    fun setSizingStrategy(strategy: SizingStrategy) {
+        _uiState.value = _uiState.value.copy(sizingStrategy = strategy)
     }
 }

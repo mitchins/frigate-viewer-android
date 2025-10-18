@@ -13,6 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +36,8 @@ fun VideoPlayer(
     streamUrl: String,
     cameraName: String,
     enableAudio: Boolean = false,
+    targetAspect: Float? = null, // when set, enforce aspect ratio (e.g., for wall fill)
+    onAspectRatio: ((Float) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -52,7 +58,11 @@ fun VideoPlayer(
         }
     }
 
-    // Using VLCVideoLayout, no explicit vout callbacks needed
+    // Keep latest listener across recompositions
+    val latestAspectListener by rememberUpdatedState(onAspectRatio)
+
+    // Note: For this libVLC version, per-frame layout callbacks must be handled via
+    // DisplayManager. As a safe fallback, we keep the hook but do not attach it here.
 
     Box(
         modifier = modifier
@@ -69,6 +79,15 @@ fun VideoPlayer(
                     mediaPlayer.attachViews(videoLayout, null, false, false)
                     if (!mediaPlayer.isPlaying) mediaPlayer.play()
                 }
+                // Apply target aspect ratio if requested
+                try {
+                    if (targetAspect != null && targetAspect > 0f) {
+                        val num = (targetAspect * 1000f).toInt().coerceAtLeast(1)
+                        mediaPlayer.setAspectRatio("${num}:1000")
+                    } else {
+                        mediaPlayer.setAspectRatio(null)
+                    }
+                } catch (_: Throwable) { }
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -117,7 +136,10 @@ fun VideoPlayer(
             try {
                 mediaPlayer.stop()
             } catch (_: Throwable) { }
-            try { mediaPlayer.detachViews() } catch (_: Throwable) { }
+            try {
+                // Detach also clears layout listener
+                mediaPlayer.detachViews()
+            } catch (_: Throwable) { }
         }
     }
 

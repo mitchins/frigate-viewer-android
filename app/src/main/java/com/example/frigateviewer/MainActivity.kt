@@ -52,7 +52,8 @@ fun FrigateViewerApp(viewModel: CameraViewModel) {
     if (showCameraSelector) {
         CameraSelectorSheet(
             uiState = uiState,
-            onApply = { selected -> viewModel.setSelectedCameras(selected) },
+            onApply = { selected -> if (selected.isNotEmpty()) viewModel.setSelectedCameras(selected) },
+            onStrategyChange = { strategy -> viewModel.setSizingStrategy(strategy) },
             onDismiss = { showCameraSelector = false }
         )
     }

@@ -15,7 +15,9 @@ import org.videolan.libvlc.LibVLC
 import com.example.frigateviewer.data.model.Camera
 import com.example.frigateviewer.data.model.ViewLayout
 import com.example.frigateviewer.ui.components.MosaicGrid
+import com.example.frigateviewer.ui.components.WallPanelGrid
 import com.example.frigateviewer.ui.components.VideoPlayer
+import com.example.frigateviewer.ui.model.SizingStrategy
 import com.example.frigateviewer.ui.viewmodel.CameraUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,7 +97,8 @@ fun ViewerScreen(
                     CameraGrid(
                         cameras = uiState.selectedCameras,
                         layout = uiState.viewLayout,
-                        frigateHost = uiState.frigateHost
+                        frigateHost = uiState.frigateHost,
+                        fill = uiState.sizingStrategy == SizingStrategy.FILL
                     )
                 }
             }
@@ -108,6 +111,7 @@ fun CameraGrid(
     cameras: List<Camera>,
     layout: ViewLayout,
     frigateHost: String,
+    fill: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -136,22 +140,51 @@ fun CameraGrid(
     DisposableEffect(Unit) {
         onDispose { try { libVLC.release() } catch (_: Throwable) { } }
     }
-    MosaicGrid(
-        items = cameras,
-        aspectRatio = { cam -> cam.aspectRatio ?: 16f / 9f },
-        modifier = modifier.fillMaxSize()
-    ) { camera ->
-        val index = cameras.indexOf(camera)
-        val audioForThisTile = index == 0
-        val useSubStream = isMultiView
-        key(camera.id) {
-            VideoPlayer(
-                libVLC = libVLC,
-                streamUrl = camera.getRtspUrl(frigateHost, useSubStream = useSubStream),
-                cameraName = camera.name,
-                enableAudio = audioForThisTile,
-                modifier = Modifier
-            )
+    // Cache runtime-measured aspect ratios for this session
+    val measuredAspectRatios = remember { mutableStateMapOf<String, Float>() }
+
+    if (fill) {
+        WallPanelGrid(
+            items = cameras,
+            aspectRatio = { cam -> measuredAspectRatios[cam.id] ?: cam.aspectRatio ?: 16f / 9f },
+            maxCropFraction = 0.10f,
+            modifier = modifier.fillMaxSize()
+        ) { camera, targetAspect ->
+            val index = cameras.indexOf(camera)
+            val audioForThisTile = index == 0
+            val useSubStream = isMultiView
+            key(camera.id) {
+                VideoPlayer(
+                    libVLC = libVLC,
+                    streamUrl = camera.getRtspUrl(frigateHost, useSubStream = useSubStream),
+                    cameraName = camera.name,
+                    enableAudio = audioForThisTile,
+                    targetAspect = targetAspect,
+                    onAspectRatio = { ar -> measuredAspectRatios[camera.id] = ar },
+                    modifier = Modifier
+                )
+            }
+        }
+    } else {
+        MosaicGrid(
+            items = cameras,
+            aspectRatio = { cam -> measuredAspectRatios[cam.id] ?: cam.aspectRatio ?: 16f / 9f },
+            modifier = modifier.fillMaxSize()
+        ) { camera ->
+            val index = cameras.indexOf(camera)
+            val audioForThisTile = index == 0
+            val useSubStream = isMultiView
+            key(camera.id) {
+                VideoPlayer(
+                    libVLC = libVLC,
+                    streamUrl = camera.getRtspUrl(frigateHost, useSubStream = useSubStream),
+                    cameraName = camera.name,
+                    enableAudio = audioForThisTile,
+                    targetAspect = null,
+                    onAspectRatio = { ar -> measuredAspectRatios[camera.id] = ar },
+                    modifier = Modifier
+                )
+            }
         }
     }
 }

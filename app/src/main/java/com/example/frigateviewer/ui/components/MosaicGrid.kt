@@ -40,62 +40,102 @@ fun <T> MosaicGrid(
 
         val ratios = items.map { r -> max(0.1f, aspectRatio(r)) }
 
-        fun rowsForCount(rowsCount: Int): Pair<List<List<Float>>, Int> {
+        // Given a target row height, greedily pack items into rows so
+        // each row's width meets/exceeds container width, then scale
+        // row height to exactly fill width.
+        fun buildRows(targetH: Int): Pair<List<List<Float>>, Int> {
             val rows = mutableListOf<List<Float>>()
-            var idx = 0
-            val base = n / rowsCount
-            val extra = n % rowsCount
-            repeat(rowsCount) { r ->
-                val take = base + if (r < extra) 1 else 0
-                if (take > 0) {
-                    rows.add(ratios.subList(idx, idx + take))
-                    idx += take
-                }
-            }
-            // compute total height when each row is scaled to fill width
+            var i = 0
             var totalH = 0
-            rows.forEach { row ->
-                val sumR = row.sum()
-                if (sumR <= 0f) return@forEach
-                val rowH = (width / sumR).toInt()
+            while (i < ratios.size) {
+                var sum = 0f
+                val row = mutableListOf<Float>()
+                while (i < ratios.size && sum < width) {
+                    val r = ratios[i]
+                    row.add(r)
+                    sum += r * targetH
+                    i++
+                }
+                if (row.isEmpty()) {
+                    row.add(ratios[i])
+                    i++
+                    sum = row[0] * targetH
+                }
+                val rowH = max(1, (width / row.sum().coerceAtLeast(0.1f)).toInt())
+                rows.add(row)
                 totalH += rowH
             }
             return rows to totalH
         }
 
-        // Choose optimal rows count
-        val (rowsRatios, totalH) = if (boundedHeight) {
-            var bestRows: List<List<Float>> = listOf()
-            var bestTotal = 0
-            var bestDiff = Int.MAX_VALUE
-            for (rowsCount in 1..n) {
-                val (rows, h) = rowsForCount(rowsCount)
-                val diff = kotlin.math.abs(maxHeight - h)
-                if (diff < bestDiff) {
-                    bestDiff = diff
+        // Choose rows via binary search on target row height to match container height
+        val (rowsRatios, baseTotalH) = if (boundedHeight) {
+            var low = 1
+            var high = max(2, maxHeight * 2)
+            var bestRows: List<List<Float>> = emptyList()
+            var bestH = Int.MAX_VALUE
+            repeat(12) {
+                val mid = (low + high) / 2
+                val (rows, totalH) = buildRows(mid)
+                // Track the closest total height to target
+                if (kotlin.math.abs(maxHeight - totalH) < kotlin.math.abs(maxHeight - bestH)) {
+                    bestH = totalH
                     bestRows = rows
-                    bestTotal = h
+                }
+                if (totalH < maxHeight) {
+                    // Too short: increase row height to reduce items per row (more rows)
+                    low = mid + 1
+                } else {
+                    // Too tall: decrease row height (fewer rows)
+                    high = mid - 1
                 }
             }
-            bestRows to bestTotal
+            val resultRows = if (bestRows.isEmpty()) buildRows(maxHeight).first else bestRows
+            val resultH = if (bestRows.isEmpty()) maxHeight else bestH
+            resultRows to resultH
         } else {
-            val rowsCount = ceil(kotlin.math.sqrt(n.toFloat())).toInt().coerceAtLeast(1)
-            rowsForCount(rowsCount)
+            buildRows(200)
         }
 
-        // Measure and place with exact sizes
+        // Measure and place with exact sizes; ensure each row fills width exactly
         val placeables = measurables
-        val layoutH = if (boundedHeight) minOf(maxHeight, totalH) else totalH
+        val layoutH = if (boundedHeight) maxHeight else baseTotalH
 
         layout(width, layoutH) {
             var y = 0
             var childIndex = 0
-            rowsRatios.forEach { row ->
+
+            rowsRatios.forEachIndexed { rowIndex, row ->
                 val sumR = row.sum().coerceAtLeast(0.1f)
-                val rowH = (width / sumR).toInt().coerceAtLeast(1)
+                val baseRowHf = (width / sumR).coerceAtLeast(1f)
+                val isLastRow = rowIndex == rowsRatios.lastIndex
+                val rowH = if (boundedHeight && isLastRow) {
+                    (maxHeight - y).coerceAtLeast(1)
+                } else {
+                    baseRowHf.toInt().coerceAtLeast(1)
+                }
+
+                // Compute integer widths that sum exactly to container width using largest remainder
+                val rawWidths = row.map { r -> (width * (r / sumR)) }
+                val floors = rawWidths.map { it.toInt() }.toMutableList()
+                var allocated = floors.sum()
+                var remaining = (width - allocated).coerceAtLeast(0)
+                if (remaining > 0) {
+                    val remaindersIdx = rawWidths.mapIndexed { idx, v -> idx to (v - floors[idx]) }
+                        .sortedByDescending { it.second }
+                    var k = 0
+                    while (remaining > 0 && k < remaindersIdx.size) {
+                        val idx = remaindersIdx[k].first
+                        floors[idx] = floors[idx] + 1
+                        remaining--
+                        k++
+                        if (k >= remaindersIdx.size) k = 0
+                    }
+                }
+
                 var x = 0
-                row.forEach { r ->
-                    val w = (r * rowH).toInt().coerceAtLeast(1)
+                floors.forEach { wInt ->
+                    val w = wInt.coerceAtLeast(1)
                     val p = placeables[childIndex].measure(Constraints.fixed(w, rowH))
                     p.placeRelative(x, y)
                     x += w
