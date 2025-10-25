@@ -118,3 +118,7 @@ Open the project in Android Studio and build:
 ## License
 
 This project is provided as-is for personal use.
+
+## Tasks
+
+- See `TODO.md` for roadmap items, statuses, and actionable next steps.

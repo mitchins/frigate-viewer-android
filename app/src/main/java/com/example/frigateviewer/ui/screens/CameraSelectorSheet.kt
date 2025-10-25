@@ -14,14 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.frigateviewer.data.model.Camera
 import com.example.frigateviewer.ui.viewmodel.CameraUiState
-import com.example.frigateviewer.ui.model.SizingStrategy
+// Global sizing strategy selection removed; per-tile Aspect Fit/Fill is gesture-based
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CameraSelectorSheet(
     uiState: CameraUiState,
     onApply: (List<Camera>) -> Unit,
-    onStrategyChange: (SizingStrategy) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -48,26 +47,7 @@ fun CameraSelectorSheet(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Sizing strategy toggle (Fit vs Fill)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val isFill = uiState.sizingStrategy == SizingStrategy.FILL
-                FilterChip(
-                    selected = !isFill,
-                    onClick = { onStrategyChange(SizingStrategy.FIT) },
-                    label = { Text("Fit") }
-                )
-                FilterChip(
-                    selected = isFill,
-                    onClick = { onStrategyChange(SizingStrategy.FILL) },
-                    label = { Text("Fill") }
-                )
-            }
-
+            // Global Fit/Fill removed; per-tile Aspect Fit/Fill is controlled via gesture.
             Spacer(modifier = Modifier.height(8.dp))
 
             if (uiState.allCameras.isEmpty()) {

@@ -1,10 +1,9 @@
 package com.example.frigateviewer.ui.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.Constraints
-import kotlin.math.ceil
 import kotlin.math.max
 
 /**
@@ -20,22 +19,15 @@ fun <T> MosaicGrid(
     items: List<T>,
     aspectRatio: (T) -> Float, // width / height
     modifier: Modifier = Modifier,
-    content: @Composable (T) -> Unit
+    content: @Composable (item: T, cellAspect: Float) -> Unit
 ) {
-    Layout(
-        modifier = modifier,
-        content = {
-            items.forEach { item ->
-                content(item)
-            }
-        }
-    ) { measurables, constraints ->
+    SubcomposeLayout(modifier = modifier) { constraints ->
         val width = constraints.maxWidth
         val boundedHeight = constraints.hasBoundedHeight
         val maxHeight = constraints.maxHeight
         val n = items.size
         if (n == 0 || width == 0) {
-            return@Layout layout(width, if (boundedHeight) maxHeight else 0) {}
+            return@SubcomposeLayout layout(width, if (boundedHeight) maxHeight else 0) {}
         }
 
         val ratios = items.map { r -> max(0.1f, aspectRatio(r)) }
@@ -98,50 +90,59 @@ fun <T> MosaicGrid(
         }
 
         // Measure and place with exact sizes; ensure each row fills width exactly
-        val placeables = measurables
         val layoutH = if (boundedHeight) maxHeight else baseTotalH
 
+        val placeables = mutableListOf<androidx.compose.ui.layout.Placeable>()
+        val positions = mutableListOf<Triple<Int, Int, Int>>() // x, y, index
+
+        var y = 0
+        var childIndex = 0
+        rowsRatios.forEachIndexed { rowIndex, row ->
+            val sumR = row.sum().coerceAtLeast(0.1f)
+            val baseRowHf = (width / sumR).coerceAtLeast(1f)
+            val isLastRow = rowIndex == rowsRatios.lastIndex
+            val rowH = if (boundedHeight && isLastRow) {
+                (maxHeight - y).coerceAtLeast(1)
+            } else {
+                baseRowHf.toInt().coerceAtLeast(1)
+            }
+
+            // Integer widths that sum exactly to width
+            val rawWidths = row.map { r -> (width * (r / sumR)) }
+            val floors = rawWidths.map { it.toInt() }.toMutableList()
+            var allocated = floors.sum()
+            var remaining = (width - allocated).coerceAtLeast(0)
+            if (remaining > 0) {
+                val remaindersIdx = rawWidths.mapIndexed { idx, v -> idx to (v - floors[idx]) }
+                    .sortedByDescending { it.second }
+                var k = 0
+                while (remaining > 0 && k < remaindersIdx.size) {
+                    val idx = remaindersIdx[k].first
+                    floors[idx] = floors[idx] + 1
+                    remaining--
+                    k++
+                    if (k >= remaindersIdx.size) k = 0
+                }
+            }
+
+            var x = 0
+            floors.forEach { wInt ->
+                val w = wInt.coerceAtLeast(1)
+                val cellAspect = w.toFloat() / rowH.toFloat()
+                val meas = subcompose(childIndex) {
+                    content(items[childIndex], cellAspect)
+                }.first().measure(Constraints.fixed(w, rowH))
+                placeables.add(meas)
+                positions.add(Triple(x, y, childIndex))
+                x += w
+                childIndex++
+            }
+            y += rowH
+        }
+
         layout(width, layoutH) {
-            var y = 0
-            var childIndex = 0
-
-            rowsRatios.forEachIndexed { rowIndex, row ->
-                val sumR = row.sum().coerceAtLeast(0.1f)
-                val baseRowHf = (width / sumR).coerceAtLeast(1f)
-                val isLastRow = rowIndex == rowsRatios.lastIndex
-                val rowH = if (boundedHeight && isLastRow) {
-                    (maxHeight - y).coerceAtLeast(1)
-                } else {
-                    baseRowHf.toInt().coerceAtLeast(1)
-                }
-
-                // Compute integer widths that sum exactly to container width using largest remainder
-                val rawWidths = row.map { r -> (width * (r / sumR)) }
-                val floors = rawWidths.map { it.toInt() }.toMutableList()
-                var allocated = floors.sum()
-                var remaining = (width - allocated).coerceAtLeast(0)
-                if (remaining > 0) {
-                    val remaindersIdx = rawWidths.mapIndexed { idx, v -> idx to (v - floors[idx]) }
-                        .sortedByDescending { it.second }
-                    var k = 0
-                    while (remaining > 0 && k < remaindersIdx.size) {
-                        val idx = remaindersIdx[k].first
-                        floors[idx] = floors[idx] + 1
-                        remaining--
-                        k++
-                        if (k >= remaindersIdx.size) k = 0
-                    }
-                }
-
-                var x = 0
-                floors.forEach { wInt ->
-                    val w = wInt.coerceAtLeast(1)
-                    val p = placeables[childIndex].measure(Constraints.fixed(w, rowH))
-                    p.placeRelative(x, y)
-                    x += w
-                    childIndex++
-                }
-                y += rowH
+            positions.forEachIndexed { idx, (x, yy, _) ->
+                placeables[idx].placeRelative(x, yy)
             }
         }
     }

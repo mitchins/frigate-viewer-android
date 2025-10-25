@@ -10,6 +10,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.frigateviewer.ui.screens.CameraSelectorSheet
 import com.example.frigateviewer.ui.screens.ViewerScreen
 import com.example.frigateviewer.ui.theme.FrigateViewerTheme
@@ -22,6 +25,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Hide system bars for immersive fullscreen viewing
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         setContent {
             FrigateViewerTheme {
@@ -46,6 +55,7 @@ fun FrigateViewerApp(viewModel: CameraViewModel) {
         onOpenCameraSelector = { showCameraSelector = true },
         onLayoutChange = { layout -> viewModel.setViewLayout(layout) },
         onRetry = { viewModel.loadCameras() },
+        onToggleExpand = { id -> viewModel.toggleExpanded(id) },
         modifier = Modifier.fillMaxSize()
     )
 
@@ -53,7 +63,6 @@ fun FrigateViewerApp(viewModel: CameraViewModel) {
         CameraSelectorSheet(
             uiState = uiState,
             onApply = { selected -> if (selected.isNotEmpty()) viewModel.setSelectedCameras(selected) },
-            onStrategyChange = { strategy -> viewModel.setSizingStrategy(strategy) },
             onDismiss = { showCameraSelector = false }
         )
     }
