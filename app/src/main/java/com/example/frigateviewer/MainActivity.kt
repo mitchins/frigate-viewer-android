@@ -53,7 +53,6 @@ fun FrigateViewerApp(viewModel: CameraViewModel) {
     ViewerScreen(
         uiState = uiState,
         onOpenCameraSelector = { showCameraSelector = true },
-        onLayoutChange = { layout -> viewModel.setViewLayout(layout) },
         onRetry = { viewModel.loadCameras() },
         onToggleExpand = { id -> viewModel.toggleExpanded(id) },
         modifier = Modifier.fillMaxSize()

@@ -2,9 +2,6 @@ package com.example.frigateviewer.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.key
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,23 +19,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import org.videolan.libvlc.LibVLC
 import com.example.frigateviewer.data.model.Camera
-import com.example.frigateviewer.data.model.ViewLayout
+// ViewLayout currently unused in full-screen viewer; reserved for future layouts
 import com.example.frigateviewer.ui.components.MosaicGrid
 import com.example.frigateviewer.ui.components.VideoPlayer
 import com.example.frigateviewer.ui.viewmodel.CameraUiState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewerScreen(
     uiState: CameraUiState,
     onOpenCameraSelector: () -> Unit,
-    onLayoutChange: (ViewLayout) -> Unit,
     onRetry: () -> Unit,
     onToggleExpand: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showLayoutMenu by remember { mutableStateOf(false) }
-
     // Full-screen content; system bars are hidden at the Activity level.
     Box(
         modifier = modifier
@@ -91,7 +84,6 @@ fun ViewerScreen(
                 else -> {
                     CameraGrid(
                         cameras = uiState.selectedCameras,
-                        layout = uiState.viewLayout,
                         frigateHost = uiState.frigateHost,
                         expandedCameraIds = uiState.expandedCameraIds,
                         onToggleExpand = onToggleExpand,
@@ -105,7 +97,6 @@ fun ViewerScreen(
 @Composable
 fun CameraGrid(
     cameras: List<Camera>,
-    layout: ViewLayout,
     frigateHost: String,
     expandedCameraIds: Set<String>,
     onToggleExpand: (String) -> Unit,

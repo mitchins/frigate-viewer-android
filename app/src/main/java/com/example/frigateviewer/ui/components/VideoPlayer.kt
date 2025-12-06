@@ -2,8 +2,6 @@ package com.example.frigateviewer.ui.components
 
 import android.net.Uri
 import android.util.Log
-import android.view.SurfaceView
-import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,13 +20,11 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
-import org.videolan.libvlc.interfaces.IVLCVout
 import org.videolan.libvlc.util.VLCVideoLayout
 import org.videolan.libvlc.MediaPlayer.Event as VlcEvent
 
@@ -39,12 +35,10 @@ fun VideoPlayer(
     cameraName: String,
     enableAudio: Boolean = false,
     targetAspect: Float? = null, // when set, enforce aspect ratio (e.g., for wall fill)
-    onAspectRatio: ((Float) -> Unit)? = null,
+    @Suppress("UNUSED_PARAMETER") onAspectRatio: ((Float) -> Unit)? = null,
     modifier: Modifier = Modifier,
     watchdogTimeoutMs: Long = 60_000
 ) {
-    val context = LocalContext.current
-
     // Track last meaningful progress time for watchdog
     var lastProgressAt by remember(streamUrl) { mutableStateOf(System.currentTimeMillis()) }
     // Expose a small transient overlay when watchdog restarts
@@ -75,8 +69,7 @@ fun VideoPlayer(
         }
     }
 
-    // Keep latest listener across recompositions
-    val latestAspectListener by rememberUpdatedState(onAspectRatio)
+    // Keep latest targetAspect across recompositions
     val latestTargetAspect by rememberUpdatedState(targetAspect)
 
     fun applyAspect(ar: Float?) {
